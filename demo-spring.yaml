@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: List
+items:
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: saas-service-spring
+      name: saas-service-spring
+    spec:
+      type: LoadBalancer
+      selector:
+        app: saas-spring
+      ports:
+        - name: http
+          port: 8080
+          targetPort: 8080
+          nodePort: 30000
+  - apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      labels:
+        app: saas-acc-spring
+      name: saas-acc-spring
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      labels:
+        app: saas-acc-spring-role-bind
+      name: saas-acc-spring-role-bind:view
+    roleRef:
+      kind: Role
+      apiGroup: rbac.authorization.k8s.io
+      name: namespace-reader-spring
+    subjects:
+      - kind: ServiceAccount
+        name: saas-acc-spring
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    metadata:
+      namespace: default
+      name: namespace-reader-spring
+    rules:
+      - apiGroups: ["", "extensions", "apps"]
+        resources: ["configmaps", "pods", "services", "endpoints", "secrets"]
+        verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: saas-spring
+    spec:
+      replicas: 2
+      selector:
+        matchLabels:
+          app: saas-spring
+      template:
+        metadata:
+          labels:
+            app: saas-spring
+        spec:
+          serviceAccountName: saas-acc-spring
+          containers:
+            - name: saas-spring
+              image: demo-spring:latest
+              imagePullPolicy: IfNotPresent
+              ports:
+                - containerPort: 8080
