@@ -49,7 +49,7 @@ items:
     metadata:
       name: saas-spring
     spec:
-      replicas: 2
+      replicas: 3
       selector:
         matchLabels:
           app: saas-spring

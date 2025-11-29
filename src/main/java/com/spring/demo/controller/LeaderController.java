@@ -1,5 +1,12 @@
 package com.spring.demo.controller;
 
+import com.spring.demo.kubernetes.PodAnnotationUpdater;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodList;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.ResponseEntity;
@@ -13,10 +20,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @RestController
 public class LeaderController {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(LeaderController.class);
 
     private final String host;
 
@@ -24,6 +34,14 @@ public class LeaderController {
     private String role;
 
     private Context context;
+
+    @Autowired
+    private KubernetesClient kubernetesClient;
+
+    @Autowired
+    private PodAnnotationUpdater podAnnotationUpdater;
+
+    private boolean firstTime = true;
 
     public LeaderController() throws UnknownHostException {
         this.host = InetAddress.getLocalHost().getHostName();
@@ -36,8 +54,8 @@ public class LeaderController {
      */
     @GetMapping("/")
     public String getInfo() {
-        System.out.println("==========================> " + System.getenv("HOSTNAME"));// pod identifier
-        System.out.println("==========================> " + System.getenv("KUBERNETES_SERVICE_HOST"));// cluster ip of service api (10.96.0.1) => pod -> kube proxy (cluster ip -> control plane ip) -> server api
+        System.out.printf("==========================> " + System.getenv("HOSTNAME"));// pod identifier
+        System.out.printf("==========================> " + System.getenv("KUBERNETES_SERVICE_HOST"));// cluster ip of service api (10.96.0.1) => pod -> kube proxy (cluster ip -> control plane ip) -> server api
 
         if (this.context == null) {
             return String.format("I am '%s' but I am not a leader of the '%s'", this.host, this.role);
@@ -47,11 +65,34 @@ public class LeaderController {
     }
 
     @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.SECONDS)
-    public void printInfo() {
+    public void printInfo() throws UnknownHostException {
+        if (firstTime) {
+            System.out.printf("++++++++++++++++++++++++++++++++++++++++++++ Before");
+            System.out.printf(
+                    kubernetesClient.pods()
+                            .withName(InetAddress.getLocalHost().getHostName()).get().getMetadata().getAnnotations().toString()
+            );
+
+            podAnnotationUpdater.addInstanceIdAnnotation(UUID.randomUUID().toString());
+
+            System.out.printf("++++++++++++++++++++++++++++++++++++++++++++ After");
+            System.out.printf(
+                    kubernetesClient.pods()
+                            .withName(InetAddress.getLocalHost().getHostName()).get().getMetadata().getAnnotations().toString()
+            );
+
+            firstTime = false;
+        }
+
         if (this.context == null) {
             System.out.printf("---I am '%s' but I am not a leader of the '%s'%n", this.host, this.role);
         } else {
             System.out.printf("---I am '%s' and I am the leader of the '%s'%n", this.host, this.role);
+        }
+
+        PodList podList = kubernetesClient.pods().list();
+        for (Pod pod : podList.getItems()) {
+            System.out.println("Incarnation ids for pod : " + pod.getMetadata().getName() + " => " + pod.getMetadata().getAnnotations());
         }
     }
 
