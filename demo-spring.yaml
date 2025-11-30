@@ -44,6 +44,9 @@ items:
       - apiGroups: ["", "extensions", "apps"]
         resources: ["configmaps", "pods", "services", "endpoints", "secrets"]
         verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+      - apiGroups: [ "coordination.k8s.io" ]
+        resources: [ "leases" ]
+        verbs: [ "get", "watch", "list", "create", "update", "patch", "delete" ]
   - apiVersion: apps/v1
     kind: Deployment
     metadata:
@@ -51,7 +54,7 @@ items:
       labels:
         app: saas-spring
     spec:
-      replicas: 3
+      replicas: 2
       selector:
         matchLabels:
           app: saas-spring

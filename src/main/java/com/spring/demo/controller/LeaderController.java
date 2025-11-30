@@ -64,7 +64,7 @@ public class LeaderController {
         return String.format("I am '%s' and I am the leader of the '%s'", this.host, this.role);
     }
 
-    @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.SECONDS)
+//    @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.SECONDS)
     public void printInfo() throws UnknownHostException {
         if (firstTime) {
             System.out.printf("++++++++++++++++++++++++++++++++++++++++++++ Before");
