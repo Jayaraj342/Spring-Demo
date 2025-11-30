@@ -48,6 +48,8 @@ items:
     kind: Deployment
     metadata:
       name: saas-spring
+      labels:
+        app: saas-spring
     spec:
       replicas: 3
       selector:

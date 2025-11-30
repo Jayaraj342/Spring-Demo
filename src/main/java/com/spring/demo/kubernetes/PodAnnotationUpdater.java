@@ -26,16 +26,49 @@ public class PodAnnotationUpdater {
             // make this one time call
             String namespace = client.pods().withName(InetAddress.getLocalHost().getHostName()).get().getMetadata().getNamespace();
 
-            client.pods()
+            System.out.println("namespace +++++++++++++++" + namespace);
+
+            // Use a more appropriate label
+            final String labelValue = "saas-spring";
+
+            System.out.println("client.optionalPod().inNamespace(namespace)" + client.pods().inNamespace(namespace).list());
+
+            // Find the specific pod using the most efficient server-side filter possible
+            // and then client-side filtering for the exact name if necessary.
+            String labelKey = "app";
+            var optionalPod = client.pods()
                     .inNamespace(namespace)
-                    .withName(podName)
-                    .edit(p -> {
-                        Map<String, String> annotations = p.getMetadata().getAnnotations();
-                        annotations.put(annotationKey, instanceId);
-                        // The 'p' object is automatically applied/replaced when edit() finishes
-                        return p;
-                    });
-            System.out.println("Successfully added annotation " + annotationKey + "=" + instanceId + " to pod " + this.podName);
+                    .withLabel(labelKey, labelValue)
+                    .list()
+                    .getItems()
+                    .stream().filter(pod -> pod.getMetadata().getName().equals(this.podName))
+                    .findFirst();
+
+
+            if (optionalPod.isPresent()) {
+
+                System.out.println("Found pod: " + this.podName + ". Proceeding to edit.");
+
+                // The .edit() function automatically handles the PUT request to the API server
+                // after the lambda function returns the modified 'pod' object.
+                client.pods()
+                        .inNamespace(namespace)
+                        .withName(podName) // Use withName for direct access for the edit operation
+                        .edit(pod -> {
+                            Map<String, String> annotations = pod.getMetadata().getAnnotations();
+                            annotations.put(annotationKey, instanceId);
+                            System.out.println("Setting annotation " + annotationKey + "=" + instanceId);
+
+                            // Return the modified pod object
+                            return pod;
+                        });
+
+                System.out.println("Annotation successfully updated on pod: " + podName);
+            } else {
+                System.err.println("Error: Pod named '" + podName +
+                        "' not found in namespace '" + namespace +
+                        "' with label '" + labelValue + "'.");
+            }
         } catch (Exception e) {
             System.err.println("Failed to add annotation to pod " + this.podName);
             e.printStackTrace();
